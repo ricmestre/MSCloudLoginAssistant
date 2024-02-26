@@ -151,6 +151,39 @@ function Connect-MSCloudLoginTeams
             }
         }
     }
+    elseif ($Global:MSCloudLoginConnectionProfile.Teams.AuthenticationType -eq 'Identity')
+    {
+        $ConnectionParams = @{
+            Identity = $true
+        }
+        Write-Verbose -Message "Connecting to Microsoft Teams using Managed Identity"
+        Connect-MicrosoftTeams @ConnectionParams -ErrorAction Stop
+        $Global:MSCloudLoginConnectionProfile.Teams.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+        $Global:MSCloudLoginConnectionProfile.Teams.MultiFactorAuthentication = $false
+        $Global:MSCloudLoginConnectionProfile.Teams.Connected                 = $true
+    }
+    elseif ($Global:MSCloudLoginConnectionProfile.Teams.AuthenticationType -eq 'AccessToken')
+    {
+        $tokenValues = @()
+        foreach ($tokenInfo in $Global:MSCloudLoginConnectionProfile.Teams.AccessTokens)
+        {
+            if ($null -ne $tokenInfo)
+            {
+                $Ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($tokenInfo)
+                $AccessTokenValue = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($Ptr)
+                [System.Runtime.InteropServices.Marshal]::ZeroFreeCoTaskMemUnicode($Ptr)
+                $tokenValues += $AccessTokenValue
+            }
+        }
+        $ConnectionParams = @{
+            AccessTokens = $tokenValues
+        }
+        Write-Verbose -Message "Connecting to Microsoft Teams using Access Token"
+        Connect-MicrosoftTeams @ConnectionParams -ErrorAction Stop
+        $Global:MSCloudLoginConnectionProfile.Teams.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+        $Global:MSCloudLoginConnectionProfile.Teams.MultiFactorAuthentication = $false
+        $Global:MSCloudLoginConnectionProfile.Teams.Connected                 = $true
+    }
     return
 }
 

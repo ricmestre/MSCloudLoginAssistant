@@ -71,7 +71,7 @@ function Connect-MSCloudLoginSecurityCompliance
                     Connect-IPPSSession -AppId $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ApplicationId `
                         -CertificateThumbprint $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.CertificateThumbprint `
                         -Organization $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.TenantId `
-                        -ConnectionUri $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ConnectionUri `
+                        -ConnectionUri $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ConnectionUrl `
                         -AzureADAuthorizationEndpointUri $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AzureADAuthorizationEndpointUri `
                         -ErrorAction Stop  `
                         -ShowBanner:$false | Out-Null
@@ -159,6 +159,16 @@ function Connect-MSCloudLoginSecurityCompliance
             Write-Verbose -Message "Could not connect connect IPPSSession with Credentials & TenantId: {$($_.Exception)}"
             Connect-MSCloudLoginSecurityComplianceMFA -TenantId $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.TenantId
         }
+    }
+    elseif($Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AuthenticationType -eq 'AccessToken')
+    {
+        Write-Verbose -Message 'Connecting to Security & Compliance with Access Token'
+        Connect-M365Tenant -Workload 'ExchangeOnline' `
+                           -AccessTokens $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AccessTokens `
+                           -TenantId $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.TenantId
+        $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ConnectedDateTime = [System.DateTime]::Now.ToString()
+        $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.MultiFactorAuthentication = $false
+        $Global:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Connected = $true
     }
     else
     {

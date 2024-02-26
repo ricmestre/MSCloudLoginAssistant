@@ -45,7 +45,7 @@ class MSCloudLoginConnectionProfile
 class Workload
 {
     [string]
-    [ValidateSet('Credentials', 'CredentialsWithApplicationId', 'CredentialsWithTenantId', 'ServicePrincipalWithSecret', 'ServicePrincipalWithThumbprint', 'ServicePrincipalWithPath', 'Interactive', 'Identity')]
+    [ValidateSet('Credentials', 'CredentialsWithApplicationId', 'CredentialsWithTenantId', 'ServicePrincipalWithSecret', 'ServicePrincipalWithThumbprint', 'ServicePrincipalWithPath', 'Interactive', 'Identity', 'AccessToken')]
     $AuthenticationType
 
     [boolean]
@@ -85,6 +85,9 @@ class Workload
     [string]
     $CertificateThumbprint
 
+    [securestring[]]
+    $AccessTokens
+
     [switch]
     $Identity
 
@@ -110,8 +113,12 @@ class Workload
             {
                 $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -Identity -TenantId $this.TenantId
             }
+            elseif ($this.AccessToken)
+            {
+                $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -TenantId $this.TenantId
+            }
 
-            Write-Verbose "Set environment to $Global:CloudEnvironmentInfo.tenant_region_sub_scope"
+            Write-Verbose "Set environment to {$($Global:CloudEnvironmentInfo.tenant_region_sub_scope)}"
         }
         switch ($Global:CloudEnvironmentInfo.tenant_region_sub_scope)
         {
@@ -124,6 +131,10 @@ class Workload
                 $this.EnvironmentName = 'AzureDOD'
             }
             'DODCON'
+            {
+                $this.EnvironmentName = 'AzureUSGovernment'
+            }
+            'USGov'
             {
                 $this.EnvironmentName = 'AzureUSGovernment'
             }
@@ -186,6 +197,10 @@ class Workload
         {
             $this.AuthenticationType = 'Identity'
         }
+        elseif ($this.AccessTokens -and -not [System.String]::IsNullOrEmpty($this.TenantId))
+        {
+            $this.AuthenticationType = 'AccessToken'
+        }
         else
         {
             $this.AuthenticationType = 'Interactive'
@@ -247,9 +262,6 @@ class ExchangeOnline:Workload
 
 class MicrosoftGraph:Workload
 {
-    [securestring]
-    $AccessToken
-
     [string]
     [ValidateSet('China', 'Global', 'USGov', 'USGovDoD', 'Germany')]
     $GraphEnvironment = 'Global'
@@ -334,9 +346,6 @@ class PnP:Workload
 
     [string]
     $AdminUrl
-
-    [string]
-    $AccessToken
 
     [string]
     [ValidateSet('Production', 'PPE', 'China', 'Germany', 'USGovernment', 'USGovernmentHigh', 'USGovernmentDoD')]
@@ -457,13 +466,19 @@ class SecurityComplianceCenter:Workload
 class Tasks:Workload
 {
     [string]
-    $AccessToken
-
-    [string]
     $HostUrl
 
     [string]
+    $AuthorizationUrl
+
+    [string]
+    $ResourceUrl
+
+    [string]
     $Scope
+
+    [string]
+    $AccessToken
 
     Tasks()
     {
@@ -471,9 +486,32 @@ class Tasks:Workload
 
     [void] Connect()
     {
-        $this.HostUrl = "https://tasks.office.com"
-        $this.Scope   = "https://tasks.office.com/.default"
         ([Workload]$this).Setup()
+        switch ($this.EnvironmentName)
+        {
+            'AzureDOD'
+            {
+                $this.HostUrl          = "https://tasks.office.us"
+                $this.Scope            = "https://tasks.office.us/.default"
+                $this.AuthorizationUrl = "https://login.microsoftonline.us"
+                $this.ResourceUrl      = "https://tasks.osi.apps.mil"
+            }
+            'AzureUSGovernment'
+            {
+                $this.HostUrl          = "https://tasks.office.us"
+                $this.Scope            = "https://tasks.office365.us/.default"
+                $this.AuthorizationUrl = "https://login.microsoftonline.us"
+                $this.ResourceUrl      = "https://tasks.office365.us"
+            }
+            default
+            {
+                $this.HostUrl          = "https://tasks.office.com"
+                $this.Scope            = "https://tasks.office.com/.default"
+                $this.AuthorizationUrl = "https://login.microsoftonline.com"
+                $this.ResourceUrl      = "https://tasks.office.com"
+            }
+        }
+
         Connect-MSCloudLoginTasks
     }
 }
